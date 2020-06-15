@@ -56,14 +56,23 @@ CHOICES_LABELS_STATES = {
 ATTRS = config.conf["brailleExtender"]["attributes"].copy().keys()
 logTextInfo = False
 
+def getReport(k):
+	if k not in config.conf["brailleExtender"]["documentFormatting"]:
+		log.error(f"unknown {k} key")
+		return False
+	return config.conf["brailleExtender"]["documentFormatting"][k]["enabled"]
 
-def setAttributes(e):
-	config.conf["brailleExtender"]["attributes"]["enabled"] = e
+def setReport(k, v):
+	if k not in config.conf["brailleExtender"]["documentFormatting"]:
+		log.error(f"unknown {k} key")
+		return False
+	config.conf["brailleExtender"]["documentFormatting"][k]["enabled"] = v
+	return True
 
-
-def attributesEnabled():
-	return config.conf["brailleExtender"]["attributes"]["enabled"]
-
+setAttributes = lambda e: setReport("attributes", e)
+setAlignments = lambda e: setReport("alignments", e)
+attributesEnabled = lambda: getReport("attributes")
+alignmentsEnabled = lambda: getReport("alignments")
 
 def decorator(fn, s):
 	def _getTypeformFromFormatField(self, field, formatConfig=None):
@@ -86,18 +95,19 @@ def decorator(fn, s):
 
 	def addTextWithFields_edit(self, info, formatConfig, isSelection=False):
 		conf = formatConfig.copy()
+		keysToEnable = [
+			"reportColor",
+			"reportSpellingErrors",
+			# "reportLineNumber",
+			"reportLineIndentation",
+			"reportParagraphIndentation"
+		]
 		if attributesEnabled():
-			keysToEnable = [
-				"reportFontAttributes",
-				"reportColor",
-				"reportSpellingErrors",
-				"reportAlignment",
-				# "reportLineNumber",
-				"reportLineIndentation",
-				"reportParagraphIndentation",
-			]
-			for keyToEnable in keysToEnable:
-				conf[keyToEnable] = True
+			keysToEnable.append("reportFontAttributes")
+		if alignmentsEnabled():
+			keysToEnable.append("reportAlignment",)
+		for keyToEnable in keysToEnable:
+			conf[keyToEnable] = True
 		textInfo_ = info.getTextWithFields(conf)
 		formatField = textInfos.FormatField()
 		for field in textInfo_:
@@ -112,57 +122,57 @@ def decorator(fn, s):
 
 	def update(self):
 		fn(self)
-		if not attributesEnabled():
-			return
-		DOT7 = 64
-		DOT8 = 128
-		size = len(self.rawTextTypeforms)
-		for i, j in enumerate(self.rawTextTypeforms):
-			try:
-				start = self.rawToBraillePos[i]
-				end = self.rawToBraillePos[
-					i + 1 if i + 1 < size else (i if i < size else size - 1)
-				]
-			except IndexError as e:
-				log.debug(e)
-				return
-			k = start
-			for k in range(start, end):
-				if j == 78:
-					self.brailleCells[k] |= DOT7 | DOT8
-				if j == 7:
-					self.brailleCells[k] |= DOT7
-				if j == 8:
-					self.brailleCells[k] |= DOT8
+		if attributesEnabled():
+			DOT7 = 64
+			DOT8 = 128
+			size = len(self.rawTextTypeforms)
+			for i, j in enumerate(self.rawTextTypeforms):
+				try:
+					start = self.rawToBraillePos[i]
+					end = self.rawToBraillePos[
+						i + 1 if i + 1 < size else (i if i < size else size - 1)
+					]
+				except IndexError as e:
+					log.debug(e)
+					return
+				k = start
+				for k in range(start, end):
+					if j == 78:
+						self.brailleCells[k] |= DOT7 | DOT8
+					if j == 7:
+						self.brailleCells[k] |= DOT7
+					if j == 8:
+						self.brailleCells[k] |= DOT8
 		formatField = self.formatField
-		textAlign = formatField.get("text-align")
-		if textAlign and textAlign not in ["start", "left"]:
-			textAlign = textAlign.replace("-moz-", "").replace("justified", "justify")
-			pct = {
-				"justify": 0.25,
-				"center": 0.5,
-				"right": 0.75,
-			}
-			displaySize = braille.handler.displaySize
-			sizeBrailleCells = len(self.brailleCells) - 1
-			start = None
-			if textAlign in ["center", "right"] and displaySize - 1 > sizeBrailleCells:
-				if textAlign == "center":
-					start = int((displaySize - sizeBrailleCells) / 2)
+		if alignmentsEnabled():
+			textAlign = formatField.get("text-align")
+			if textAlign and textAlign not in ["start", "left"]:
+				textAlign = textAlign.replace("-moz-", "").replace("justified", "justify")
+				pct = {
+					"justify": 0.25,
+					"center": 0.5,
+					"right": 0.75,
+				}
+				displaySize = braille.handler.displaySize
+				sizeBrailleCells = len(self.brailleCells) - 1
+				start = None
+				if textAlign in ["center", "right"] and displaySize - 1 > sizeBrailleCells:
+					if textAlign == "center":
+						start = int((displaySize - sizeBrailleCells) / 2)
+					else:
+						start = displaySize - sizeBrailleCells
+				elif textAlign == "justify":
+					start = 3
+				elif textAlign in pct:
+					start = int(pct[textAlign] * braille.handler.displaySize) - 1
 				else:
-					start = displaySize - sizeBrailleCells
-			elif textAlign == "justify":
-				start = 3
-			elif textAlign in pct:
-				start = int(pct[textAlign] * braille.handler.displaySize) - 1
-			else:
-				log.warning(f"Unknown text-align {textAlign}")
-			if start is not None:
-				s = "⠀" * start
-				repl = brailleRegionHelper.BrailleCellReplacement(
-					start=0, insertBefore=s
-				)
-				brailleRegionHelper.replaceBrailleCells(self, [repl])
+					log.warning(f"Unknown text-align {textAlign}")
+				if start is not None:
+					s = "⠀" * start
+					repl = brailleRegionHelper.BrailleCellReplacement(
+						start=0, insertBefore=s
+					)
+					brailleRegionHelper.replaceBrailleCells(self, [repl])
 
 	if s == "addTextWithFields":
 		return addTextWithFields_edit
@@ -311,16 +321,25 @@ class SettingsDlg(gui.settingsDialogs.SettingsPanel):
 	def makeSettings(self, settingsSizer):
 		sHelper = gui.guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 		sHelper.addItem(wx.StaticText(self, label=self.panelDescription))
-		self.fontAttrsCheckBox = sHelper.addItem(
-			wx.CheckBox(self, label=N_("Font attrib&utes"))
+		label = N_("Font attrib&utes")
+		self.reportFontAttributes = sHelper.addItem(
+			wx.CheckBox(self, label=label)
 		)
-		self.fontAttrsCheckBox.SetValue(attributesEnabled())
+		self.reportFontAttributes.SetValue(attributesEnabled())
+		label = N_("&Alignment")
+		self.reportAlignments = sHelper.addItem(
+			wx.CheckBox(self, label=label)
+		)
+		self.reportAlignments.SetValue(alignmentsEnabled())
 
 		bHelper = gui.guiHelper.ButtonHelper(orientation=wx.HORIZONTAL)
 		self.attributesBtn = bHelper.addButton(
-			self, label="%s..." % _("Manage &attributes")
+			self, label="%s..." % _("Manage a&ttributes")
 		)
 		self.attributesBtn.Bind(wx.EVT_BUTTON, self.onAttributesBtn)
+		self.alignmentsBtn = bHelper.addButton(
+			self, label="%s..." % _("Manage a&lignments")
+		)
 		sHelper.addItem(bHelper)
 
 	def onAttributesBtn(self, evt=None):
@@ -329,9 +348,8 @@ class SettingsDlg(gui.settingsDialogs.SettingsPanel):
 		self.attributesBtn.SetFocus()
 
 	def postInit(self):
-		self.fontAttrsCheckBox.SetFocus()
+		self.reportFontAttributes.SetFocus()
 
 	def onSave(self):
-		config.conf["brailleExtender"]["attributes"][
-			"enabled"
-		] = self.fontAttrsCheckBox.IsChecked()
+		setAttributes(self.reportFontAttributes.IsChecked())
+		setAlignments(self.reportAlignments.IsChecked())
