@@ -154,6 +154,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		advancedInputMode.initialize()
 		brailleTablesExt.initializeGroups()
 		objectPresentation.loadpropertiesOrder()
+		documentFormatting.load_tags()
 		log.info(f"{addonName} {addonVersion} loaded ({round(time.time()-startTime, 2)}s)")
 
 	def event_gainFocus(self, obj, nextHandler):
