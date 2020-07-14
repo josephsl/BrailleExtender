@@ -297,7 +297,7 @@ def loadConf():
 	if config.conf["brailleExtender"]["features"]["roleLabels"]:
 		loadRoleLabels(config.conf["brailleExtender"]["roleLabels"].copy())
 	return True
-    
+
 def setRightMarginCells():
 	rightMarginCells = getRightMarginCells()
 	if rightMarginCells:
@@ -306,7 +306,7 @@ def setRightMarginCells():
 			backupDisplaySize = braille.handler.displaySize
 		displaySize = backupDisplaySize-rightMarginCells
 		if displaySize: braille.handler.displaySize = displaySize
-        
+
 def getRightMarginCells():
 	key = f"rightMarginCells_{curBD}"
 	return int(config.conf["brailleExtender"][key]) if key in config.conf["brailleExtender"]else 0
