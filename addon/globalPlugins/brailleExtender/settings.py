@@ -102,13 +102,19 @@ class GeneralDlg(gui.settingsDialogs.SettingsPanel):
 			itemToSelect = list(configBE.outputMessage.keys()).index(config.conf["brailleExtender"]["modifierKeysFeedback"])
 		else:
 			itemToSelect = list(configBE.outputMessage.keys()).index(configBE.CHOICE_braille)
+		self.modifierKeysFeedback.SetSelection(itemToSelect)
+
 		# Translators: label of a dialog.
 		self.beepsModifiers = sHelper.addItem(wx.CheckBox(self, label=_("Play beeps for modifier keys")))
 		self.beepsModifiers.SetValue(config.conf["brailleExtender"]["beepsModifiers"])
 
+		label = _("Braille display margins (beta, requires NVDA restart)")
+		marginsGroup = gui.guiHelper.BoxSizerHelper(self, sizer=wx.StaticBoxSizer(wx.StaticBox(self, label=label), wx.VERTICAL))
+		sHelper.addItem(marginsGroup)
+
 		# Translators: label of a dialog.
-		self.modifierKeysFeedback.SetSelection(itemToSelect)
-		self.rightMarginCells = sHelper.addLabeledControl(_("Right margin on cells")+" "+_("for the currrent braille display"), gui.nvdaControls.SelectOnFocusSpinCtrl, min=0, max=100, initial=int(config.conf["brailleExtender"]["rightMarginCells_%s" % configBE.curBD]))
+		label = _("&Right")
+		self.rightMarginCells = marginsGroup.addLabeledControl(label, gui.nvdaControls.SelectOnFocusSpinCtrl, min=0, max=100, initial=configBE.getRightMarginCells())
 		if configBE.gesturesFileExists:
 			lb = [k for k in instanceGP.getKeyboardLayouts()]
 			# Translators: label of a dialog.

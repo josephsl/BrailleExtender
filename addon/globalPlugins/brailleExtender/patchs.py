@@ -59,6 +59,7 @@ origFunc = {
 	"update": braille.Region.update,
 	"_createTablesString": louis._createTablesString,
 	"update_TextInfoRegion": braille.TextInfoRegion.update,
+	"display": braille.handler.display.display
 }
 
 def sayCurrentLine():
@@ -727,6 +728,12 @@ def _createTablesString(tablesList):
 	"""Creates a tables string for liblouis calls"""
 	return b",".join([x.encode(sys.getfilesystemencoding()) if isinstance(x, str) else bytes(x) for x in tablesList])
 
+# braille.handler.display.display
+def display(cells):
+	nb = configBE.backupDisplaySize - braille.handler.displaySize
+	if nb: cells += [0] * nb
+	origFunc["display"](cells)
+
 # applying patches
 braille.getFormatFieldBraille = getFormatFieldBraille
 braille.Region.update = update_region
@@ -747,5 +754,6 @@ braille.getPropertiesBraille = getPropertiesBraille
 
 # This variable tells if braille region should parse undefined characters
 braille.Region.parseUndefinedChars = True
-
 braille.Region.brlex_typeforms = []
+if configBE.getRightMarginCells():
+	braille.handler.display.display = display
