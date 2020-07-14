@@ -55,7 +55,8 @@ SELECTION_SHAPE = lambda: braille.SELECTION_SHAPE
 origFunc = {
 	"script_braille_routeTo": globalCommands.GlobalCommands.script_braille_routeTo,
 	"update": braille.Region.update,
-	"_createTablesString": louis._createTablesString
+	"_createTablesString": louis._createTablesString,
+	"display": braille.handler.display.display
 }
 
 def sayCurrentLine():
@@ -487,6 +488,12 @@ def _createTablesString(tablesList):
 	"""Creates a tables string for liblouis calls"""
 	return b",".join([x.encode(sys.getfilesystemencoding()) if isinstance(x, str) else bytes(x) for x in tablesList])
 
+# braille.handler.display.display
+def display(cells):
+	nb = configBE.backupDisplaySize - braille.handler.displaySize
+	if nb: cells += [0] * nb
+	origFunc["display"](cells)
+
 # applying patches
 braille.Region.update = update
 braille.TextInfoRegion.previousLine = previousLine
@@ -503,3 +510,5 @@ script_braille_routeTo.__doc__ = origFunc["script_braille_routeTo"].__doc__
 
 # This variable tells if braille region should parse undefined characters
 braille.Region.parseUndefinedChars = True
+if configBE.getRightMarginCells():
+	braille.handler.display.display = display
